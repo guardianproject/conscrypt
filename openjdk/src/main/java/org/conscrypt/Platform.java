@@ -67,10 +67,18 @@ import java.security.spec.InvalidParameterSpecException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.naming.Context;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
@@ -811,5 +819,43 @@ final class Platform {
 
     public static boolean isJavaxCertificateSupported() {
         return JAVA_VERSION < 15;
+    }
+
+    public static byte[] getEchConfigListFromDns(String dnshost) {
+        byte[] echConfigList = null;
+        try {
+            Hashtable<String, String> envProps = new Hashtable<String, String>();
+            envProps.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
+            DirContext dnsContext = new InitialDirContext(envProps);
+            Attributes dnsEntries = dnsContext.getAttributes(dnshost, new String[]{"65"});
+            NamingEnumeration<?> ae = dnsEntries.getAll();
+            while (ae.hasMore()) {
+                Attribute attr = (Attribute) ae.next();
+                switch (attr.getID()) {
+                    case "A":
+                        System.out.println(dnshost + " " + attr);
+                        break;
+                    case "AAAA":
+                        System.out.println(dnshost + " " + attr);
+                        break;
+                    case "65":
+                        for (int i = 0; i < attr.size(); i++) {
+                            Object rr = attr.get(i);
+                            if (!(rr instanceof byte[])) continue;
+                            try {
+                                echConfigList = EchDnsPacket.getEchConfigListFromDnsRR((byte[]) rr);
+                            } catch (ArrayIndexOutOfBoundsException e) {
+                                // TODO fix the parsing code to not ever do this
+                                e.printStackTrace();
+                            }
+                        }
+                        break;
+                }
+            }
+            ae.close();
+        } catch (NamingException e) {
+            // ignored
+        }
+        return echConfigList;
     }
 }

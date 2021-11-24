@@ -245,7 +245,7 @@ public abstract class DnsPacket {
         for (int i = 0; i < NUM_SECTIONS; ++i) {
             final int count = mHeader.getRecordCount(i);
             if (count > 0) {
-                mRecords[i] = new ArrayList(count);
+                mRecords[i] = new ArrayList<>(count);
             }
             for (int j = 0; j < count; ++j) {
                 try {
