@@ -15,7 +15,6 @@
  */
 package org.conscrypt;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -39,7 +38,6 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import org.conscrypt.com.android.net.module.util.DnsPacket;
 import org.conscrypt.io.IoUtils;
 
 /**
@@ -70,6 +68,21 @@ public final class Conscrypt {
         } catch (Throwable e) {
             return false;
         }
+    }
+
+    public static void echPbuf(String msg, byte[] buf) {
+        if (buf == null) {
+            System.out.println(msg + " ():\n    null");
+            return;
+        }
+        int blen = buf.length;
+        System.out.print(msg + " (" + blen + "):\n    ");
+        for (int i = 0; i < blen; i++) {
+            if ((i != 0) && (i % 16 == 0))
+                System.out.print("\n    ");
+            System.out.print(String.format("%02x:", buf[i] & 255));
+        }
+        System.out.print("\n");
     }
 
     public static class Version {
@@ -525,6 +538,18 @@ public final class Conscrypt {
         return toConscrypt(socket).echAccepted();
     }
 
+    public static byte[] getEchConfigListFromDns(String hostname) {
+        return getEchConfigListFromDns(hostname, 443);
+    }
+
+    public static byte[] getEchConfigListFromDns(String hostname, int port) {
+        String dnshost = hostname;
+        if (port != 443) {
+            dnshost = "_" + port + "._https." + hostname; // query for non-standard port
+        }
+        return Platform.getEchConfigListFromDns(dnshost);
+    }
+
     /**
      * Indicates whether the given {@link SSLEngine} was created by this distribution of Conscrypt.
      */
@@ -801,120 +826,6 @@ public final class Conscrypt {
         return toConscrypt(engine).echAccepted();
     }
 
-
-    /**
-     * < Max RR value size, as given to API
-     */
-    private static int ECH_MAX_RRVALUE_LEN = 2000;
-    /**
-     * < Max for an ECHConfig extension
-     */
-    private static int ECH_MAX_ECHCONFIGEXT_LEN = 100;
-    /**
-     * < just for a sanity check
-     */
-    private static int ECH_MIN_ECHCONFIG_LEN = 32;
-    /**
-     * < for a sanity check
-     */
-    private static int ECH_MAX_ECHCONFIG_LEN = ECH_MAX_RRVALUE_LEN;
-
-    /**
-     * One or more catenated binary ECHConfigs
-     */
-    public static int ECH_FMT_BIN = 1;
-    /**
-     * < presentation form of HTTPSSVC
-     */
-    public static int ECH_FMT_HTTPSSVC = 4;
-    /**
-     * the wire-format code for ECH within an SVCB or HTTPS RData
-     */
-    private static int ECH_PCODE_ECH = 0x0005;
-
-    /**
-     * Decode SVCB/HTTPS RR value provided as binary or ascii-hex.
-     * <p>
-     * The rrval may be the catenation of multiple encoded ECHConfigs.
-     * We internally try decode and handle those and (later)
-     * use whichever is relevant/best.
-     * <p>
-     * Note that we "succeed" even if there is no ECHConfigs in the input - some
-     * callers might download the RR from DNS and pass it here without looking
-     * inside, and there are valid uses of such RRs. The caller can check though
-     * using the num_echs output.
-     *
-     * @param rrval is the binary encoded RData
-     * @return is 1 for success, error otherwise
-     */
-    public static byte[] getEchConfigListFromDnsRR(byte[] rrval) {
-        int rv = 0;
-        int binlen = 0; /* the RData */
-        byte[] binbuf = null;
-        int pos = 0;
-        int remaining = rrval.length;;
-        String dnsname = null;
-        int plen = 0;
-        boolean done = false;
-
-        /*
-         * skip 2 octet priority and TargetName as those are the
-         * application's responsibility, not the library's
-         */
-        if (remaining <= 2) return null;
-        pos += 2;
-        remaining -= 2;
-        pos++;
-        int clen = DnsPacket.byteToUnsignedInt(rrval[pos]);
-        ByteArrayOutputStream thename = new ByteArrayOutputStream();
-        if (clen == 0) {
-            // special case - return "." as name
-            thename.write('.');
-            rv = 1;
-        }
-        while (clen != 0) {
-            if (clen > remaining) {
-                rv = 1;
-                break;
-            }
-            for (int i =pos; i < clen; i++) {
-                thename.write(DnsPacket.byteToUnsignedInt(rrval[pos + i]));
-            }
-            thename.write('.');
-            pos += clen;
-            remaining -= clen + 1;
-            clen = DnsPacket.byteToUnsignedInt(rrval[pos]);
-        }
-        if (rv != 1) {
-            return null;
-        }
-
-        int echStart = 0;
-        while (!done && remaining >= 4) {
-            int pcode = (rrval[pos] << 8) + rrval[pos + 1];
-            pos += 2;
-            plen = (rrval[pos] << 8) + rrval[pos + 1];
-            pos += 2;
-            remaining -= 4;
-            if (pcode == ECH_PCODE_ECH) {
-                echStart = pos;
-                done = true;
-            }
-            if (plen != 0 && plen <= remaining) {
-                pos += plen;
-                remaining -= plen;
-            }
-        }
-        if (!done) {
-            return null;
-        }
-        if (plen <=0) {
-            return null;
-        }
-        byte[] ret = new byte[plen];
-        System.arraycopy(rrval, echStart, ret, 0, plen);
-        return ret;
-    }
 
     /**
      * Indicates whether the given {@link TrustManager} was created by this distribution of

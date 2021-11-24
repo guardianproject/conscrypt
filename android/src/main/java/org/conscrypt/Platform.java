@@ -18,7 +18,10 @@ package org.conscrypt;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
+import android.net.DnsResolver;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import dalvik.system.BlockGuard;
@@ -49,6 +52,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SNIServerName;
@@ -1075,5 +1082,60 @@ final class Platform {
 
     public static boolean isJavaxCertificateSupported() {
         return true;
+    }
+
+    /**
+     * This is a hack to make a blocking method because the underlying blocking
+     * methods that actually do the query are {@code @hide} on Android and on
+     * Android's reflection blacklist:
+     * <p>
+     * {@code Accessing hidden method Landroid/net/NetworkUtils;->resNetworkQuery(ILjava/lang/String;III)Ljava/io/FileDescriptor; (blacklist, reflection, denied)}
+     *
+     * @see android.net.NetworkUtils#resNetworkQuery(int, String, int, int, int)
+     */
+    @TargetApi(29)
+    public static byte[] getEchConfigListFromDns(final String dnshost) {
+        if (Build.VERSION.SDK_INT < 29) {
+            return null;
+        }
+        final byte[][] echConfigListReturn = {null};
+        try {
+            Executor executor = new Executor() {
+                @Override
+                public void execute(Runnable command) {
+                    final Handler handler = new Handler(Looper.getMainLooper());
+                    if (handler == null) {
+                        throw new NullPointerException();
+                    }
+                    if (!handler.post(command)) {
+                        throw new RejectedExecutionException(handler + " is shutting down");
+                    }
+                }
+            };
+            final CountDownLatch latch = new CountDownLatch(1);
+            DnsResolver dnsResolver = DnsResolver.getInstance();
+            dnsResolver.rawQuery(null, dnshost, DnsResolver.CLASS_IN, EchDnsPacket.TYPE_HTTPS, DnsResolver.FLAG_EMPTY,
+                    executor, null,
+                    new DnsResolver.Callback<byte[]>() {
+                        final String host = "deb.debian.org";
+
+                        @Override
+                        public void onAnswer(byte[] answer, int rcode) {
+                            EchDnsPacket echDnsPacket = new EchDnsPacket(answer);
+                            echConfigListReturn[0] = echDnsPacket.getEchConfigList();
+                            latch.countDown();
+                        }
+
+                        @Override
+                        public void onError(DnsResolver.DnsException error) {
+                            System.out.println("onError  " + error);
+                            latch.countDown();
+                        }
+                    });
+            latch.await(10, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            // ignored
+        }
+        return echConfigListReturn[0];
     }
 }

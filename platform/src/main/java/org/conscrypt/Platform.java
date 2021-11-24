@@ -561,4 +561,10 @@ final class Platform {
     public static boolean isJavaxCertificateSupported() {
         return true;
     }
+
+    public static byte[] getEchConfigListFromDns(String dnshost) {
+        byte[] echConfigList = null;
+        // TODO implement based on reflection to fetch Android's DNS stuff
+        return echConfigList;
+    }
 }

@@ -35,15 +35,8 @@ import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 import java.util.Arrays;
-import java.util.Hashtable;
 
-import javax.naming.Context;
-import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
@@ -73,11 +66,11 @@ public class EchInteropTest {
             "deb.debian.org", // TLS 1.3 Fastly
             "tls13.1d.pw", // TLS 1.3 only, no ECH
 
-            "cloudflareresearch.com", // no ECH
             "cloudflare-esni.com", // ESNI no ECH
+            "enabled.tls13.com", // TLS 1.3 enabled by Cloudflare with ESNI no ECH
+            "cloudflare.f-droid.org",
     };
     String[] hostsEch = {
-            "enabled.tls13.com", // TLS 1.3 enabled by Cloudflare with ECH support
             "crypto.cloudflare.com", // ECH
 
             // ECH enabled
@@ -162,7 +155,7 @@ public class EchInteropTest {
             SSLSocket sslSocket = (SSLSocket) sslSocketFactory.createSocket(host, port);
             assertTrue(h + " should use Conscrypt", Conscrypt.isConscrypt(sslSocket));
 
-            byte[] echConfigList = getEchConfigListFromDns(h);
+            byte[] echConfigList = Conscrypt.getEchConfigListFromDns(host, port);
             if (echConfigList == null) {
                 System.out.println("No ECH Config List found in DNS: " + h);
                 continue;
@@ -176,7 +169,7 @@ public class EchInteropTest {
             echConfigList[21] = (byte) 0xff;
             echConfigList[22] = (byte) 0xff;
             echConfigList[23] = (byte) 0xff;
-            echPbuf("testEchRetryConfigWithConnectSocket corrupted " + h, echConfigList);
+            Conscrypt.echPbuf("testEchRetryConfigWithConnectSocket corrupted " + h, echConfigList);
             Conscrypt.setEchConfigList(sslSocket, echConfigList);
 
             try {
@@ -188,7 +181,7 @@ public class EchInteropTest {
                 byte[] echRetryConfig = Conscrypt.getEchRetryConfigList(sslSocket);
                 assertNotNull(echRetryConfig);
                 sslSocket.close();
-                echPbuf("testEchRetryConfigWithConnectSocket getEchRetryConfigList(sslSocket)", echRetryConfig);
+                Conscrypt.echPbuf("testEchRetryConfigWithConnectSocket getEchRetryConfigList(sslSocket)", echRetryConfig);
                 SSLSocket sslSocket2 = (SSLSocket) sslSocketFactory.createSocket(host, port);
                 Conscrypt.setEchConfigList(sslSocket2, echRetryConfig);
                 sslSocket2.setSoTimeout(TIMEOUT_MILLISECONDS);
@@ -281,7 +274,7 @@ public class EchInteropTest {
             if (hostPort.length > 1) {
                 port = Integer.parseInt(hostPort[1]);
             }
-            byte[] echConfigList = getEchConfigListFromDns(h);
+            byte[] echConfigList = Conscrypt.getEchConfigListFromDns(host, port);
             if (echConfigList != null) {
                 assertEquals("length should match inline declaration",
                         echConfigList[1] + 2,  // leading 0x00 and length bytes
@@ -325,14 +318,10 @@ public class EchInteropTest {
             }
             try {
                 byte[] dnsAnswer = TestUtils.readTestFile(host + ".bin");
-                echPbuf("DNS Answer", dnsAnswer);
+                Conscrypt.echPbuf("DNS Answer", dnsAnswer);
                 try {
-                    DnsEchAnswer dnsEchAnswer = new DnsEchAnswer(dnsAnswer);
-                    if (dnsEchAnswer.getEchConfigList() == null) {
-                        System.out.println("ECH Config List - null");
-                    } else {
-                        echPbuf("ECH Config List", dnsEchAnswer.getEchConfigList());
-                    }
+                    EchDnsPacket echDnsPacket = new EchDnsPacket(dnsAnswer);
+                    Conscrypt.echPbuf("ECH Config List", echDnsPacket.getEchConfigList());
                 } catch (DnsPacket.ParseException e) {
                     e.printStackTrace();
                 }
@@ -340,80 +329,6 @@ public class EchInteropTest {
                 e.printStackTrace();
             }
 
-        }
-    }
-
-    static byte[] getEchConfigListFromDns(String hostPort) throws NamingException {
-        String[] h = hostPort.split(":");
-        String dnshost = h[0];
-        if (h.length > 1 && !"443".equals(h[1])) {
-            dnshost = "_" + h[1] + "._https." + h[0]; // query for non-standard port
-        }
-
-        byte[] echConfigList = null;
-        Hashtable<String, String> envProps =
-                new Hashtable<String, String>();
-        envProps.put(Context.INITIAL_CONTEXT_FACTORY,
-                "com.sun.jndi.dns.DnsContextFactory");
-        DirContext dnsContext = new InitialDirContext(envProps);
-        Attributes dnsEntries = dnsContext.getAttributes(dnshost, new String[]{"65"});
-        NamingEnumeration<?> ae = dnsEntries.getAll();
-        while (ae.hasMore()) {
-            Attribute attr = (Attribute) ae.next();
-            // only parse SVCB or HTTPS
-            if (!("64".equals(attr.getID()) || "65".equals(attr.getID()))) continue;
-            for (int i = 0; i < attr.size(); i++) {
-                Object rr = attr.get(i);
-                if (!(rr instanceof byte[])) continue;
-                echConfigList = Conscrypt.getEchConfigListFromDnsRR((byte[]) rr);
-            }
-        }
-        ae.close();
-        return echConfigList;
-    }
-
-    class DnsEchAnswer extends DnsPacket {
-        private static final String TAG = "DnsResolver.DnsAddressAnswer";
-        private static final boolean DBG = true;
-
-        /**
-         * Service Binding [draft-ietf-dnsop-svcb-https-00]
-         */
-        public static final int TYPE_SVCB = 64;
-
-        /**
-         * HTTPS Binding [draft-ietf-dnsop-svcb-https-00]
-         */
-        public static final int TYPE_HTTPS = 65;
-
-        private final int mQueryType;
-
-        protected DnsEchAnswer(byte[] data) throws ParseException {
-            super(data);
-            if ((mHeader.flags & (1 << 15)) == 0) {
-                throw new IllegalArgumentException("Not an answer packet");
-            }
-            if (mHeader.getRecordCount(QDSECTION) == 0) {
-                throw new IllegalArgumentException("No question found");
-            }
-            // Expect only one question in question section.
-            mQueryType = mRecords[QDSECTION].get(0).nsType;
-        }
-
-        public byte[] getEchConfigList() {
-            byte[] results = new byte[0];
-            if (mHeader.getRecordCount(ANSECTION) == 0) return results;
-
-            for (final DnsRecord ansSec : mRecords[ANSECTION]) {
-                // Only support SVCB and HTTPS since only they can have ECH Config Lists
-                int nsType = ansSec.nsType;
-                if (nsType != mQueryType || (nsType != TYPE_SVCB && nsType != TYPE_HTTPS)) {
-                    continue;
-                }
-                echPbuf("RR", ansSec.getRR());
-                results = Conscrypt.getEchConfigListFromDnsRR(ansSec.getRR());
-            }
-            return results;
         }
     }
 
@@ -480,22 +395,6 @@ public class EchInteropTest {
             Conscrypt.setEchConfigList(sslSocket, echConfigList);
             return sslSocket;
         }
-
-    }
-
-    public static void echPbuf(String msg, byte[] buf) {
-        if (buf == null) {
-            System.out.println(msg + " ():\n    null");
-            return;
-        }
-        int blen = buf.length;
-        System.out.print(msg + " (" + blen + "):\n    ");
-        for (int i = 0; i < blen; i++) {
-            if ((i != 0) && (i % 16 == 0))
-                System.out.print("\n    ");
-            System.out.print(String.format("%02x:", Byte.toUnsignedInt(buf[i])));
-        }
-        System.out.print("\n");
     }
 
     /**
@@ -507,10 +406,10 @@ public class EchInteropTest {
             new Thread() {
                 @Override
                 public void run() {
+                    Conscrypt.getEchConfigListFromDns(host);
                     try {
                         InetAddress.getByName(host);
-                        getEchConfigListFromDns(host);
-                    } catch (UnknownHostException | NamingException e) {
+                    } catch (UnknownHostException e) {
                         // ignored
                     }
                 }
