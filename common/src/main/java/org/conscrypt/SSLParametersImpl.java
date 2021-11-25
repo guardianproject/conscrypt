@@ -106,6 +106,7 @@ final class SSLParametersImpl implements Cloneable {
     private Boolean useSni;
 
     private boolean useEchGrease;
+    private boolean checkDnsForEch;
     byte[] echConfigList;
 
     /**
@@ -195,6 +196,7 @@ final class SSLParametersImpl implements Cloneable {
         this.useSni = sslParams.useSni;
         this.channelIdEnabled = sslParams.channelIdEnabled;
         this.useEchGrease = sslParams.useEchGrease;
+        this.checkDnsForEch = sslParams.checkDnsForEch;
         this.echConfigList =
             (sslParams.echConfigList == null) ? null : sslParams.echConfigList.clone();
     }
@@ -405,6 +407,14 @@ final class SSLParametersImpl implements Cloneable {
      */
     boolean getUseSni() {
         return useSni != null ? useSni : isSniEnabledByDefault();
+    }
+
+    void setCheckDnsForEch(boolean flag) {
+        checkDnsForEch = flag;
+    }
+
+    boolean getCheckDnsForEch() {
+        return checkDnsForEch;
     }
 
     /**

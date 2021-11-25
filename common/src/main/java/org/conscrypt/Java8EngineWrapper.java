@@ -117,6 +117,16 @@ final class Java8EngineWrapper extends AbstractConscryptEngine {
     }
 
     @Override
+    public void setCheckDnsForEch(boolean flag) {
+        delegate.setCheckDnsForEch(false);
+    }
+
+    @Override
+    public boolean getCheckDnsForEch() {
+        return delegate.getCheckDnsForEch();
+    }
+
+    @Override
     public void setUseEchGrease(boolean enabled) {
         delegate.setUseEchGrease(enabled);
     }

@@ -77,6 +77,7 @@ class ConscryptEngineSocket extends OpenSSLSocketImpl implements SSLParametersIm
             throws IOException {
         super(hostname, port);
         engine = newEngine(sslParameters, this);
+        checkDnsForEchConfigList(hostname, port);
     }
 
     ConscryptEngineSocket(InetAddress address, int port, SSLParametersImpl sslParameters)
@@ -89,6 +90,7 @@ class ConscryptEngineSocket extends OpenSSLSocketImpl implements SSLParametersIm
             SSLParametersImpl sslParameters) throws IOException {
         super(hostname, port, clientAddress, clientPort);
         engine = newEngine(sslParameters, this);
+        checkDnsForEchConfigList(hostname, port);
     }
 
     ConscryptEngineSocket(InetAddress address, int port, InetAddress clientAddress, int clientPort,
@@ -101,6 +103,7 @@ class ConscryptEngineSocket extends OpenSSLSocketImpl implements SSLParametersIm
             SSLParametersImpl sslParameters) throws IOException {
         super(socket, hostname, port, autoClose);
         engine = newEngine(sslParameters, this);
+        checkDnsForEchConfigList(hostname, port);
     }
 
     private static ConscryptEngine newEngine(
@@ -403,6 +406,14 @@ class ConscryptEngineSocket extends OpenSSLSocketImpl implements SSLParametersIm
     @Override
     byte[] exportKeyingMaterial(String label, byte[] context, int length) throws SSLException {
         return engine.exportKeyingMaterial(label, context, length);
+    }
+
+    public void setCheckDnsForEch(boolean flag) {
+        engine.setCheckDnsForEch(false);
+    }
+
+    public boolean getCheckDnsForEch() {
+        return engine.getCheckDnsForEch();
     }
 
     @Override

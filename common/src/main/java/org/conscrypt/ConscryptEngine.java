@@ -398,6 +398,16 @@ final class ConscryptEngine extends AbstractConscryptEngine implements NativeCry
     }
 
     @Override
+    public void setCheckDnsForEch(boolean flag) {
+        sslParameters.setCheckDnsForEch(flag);
+    }
+
+    @Override
+    public boolean getCheckDnsForEch() {
+        return sslParameters.getCheckDnsForEch();
+    }
+
+    @Override
     public void setUseEchGrease(boolean enabled) {
         sslParameters.setUseEchGrease(enabled);
     }
