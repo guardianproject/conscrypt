@@ -510,6 +510,27 @@ public final class Conscrypt {
     }
 
     /**
+     * Set whether ECH Configs should be automatically fetched from DNS.
+     *
+     * <p>This method needs to be invoked before the handshake starts.
+     *
+     * @param socket to check
+     * @param flag whether to check DNS for ECH
+     */
+    public static void setCheckDnsForEch(SSLSocket socket, boolean flag) {
+        toConscrypt(socket).setCheckDnsForEch(flag);
+    }
+
+    /**
+     * Whether ECH Configs will be automatically fetched from DNS.
+     *
+     * @param socket to check
+     */
+    public static boolean getCheckDnsForEch(SSLSocket socket) {
+        return toConscrypt(socket).getCheckDnsForEch();
+    }
+
+    /**
      *
      * @param socket the socket
      * @param enabled whether ECH GREASE is enabled or not
@@ -792,6 +813,27 @@ public final class Conscrypt {
     public static byte[] exportKeyingMaterial(SSLEngine engine, String label, byte[] context,
             int length) throws SSLException {
         return toConscrypt(engine).exportKeyingMaterial(label, context, length);
+    }
+
+    /**
+     * Set whether ECH Configs should be automatically fetched from DNS.
+     *
+     * <p>This method needs to be invoked before the handshake starts.
+     *
+     * @param engine to check
+     * @param flag whether to check DNS for ECH
+     */
+    public static void setCheckDnsForEch(SSLEngine engine, boolean flag) {
+        toConscrypt(engine).setCheckDnsForEch(flag);
+    }
+
+    /**
+     * Whether ECH Configs will be automatically fetched from DNS.
+     *
+     * @param engine to check
+     */
+    public static boolean getCheckDnsForEch(SSLEngine engine) {
+        return toConscrypt(engine).getCheckDnsForEch();
     }
 
     /**

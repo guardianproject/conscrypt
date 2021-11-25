@@ -613,6 +613,19 @@ abstract class AbstractConscryptSocket extends SSLSocket {
         // constructor.
         return socket != null && socket != this;
     }
+
+    /**
+     * If the ECH Config List has not already been set, try to get it from DNS.
+     */
+    void checkDnsForEchConfigList(String hostname, int port) {
+        if (!getCheckDnsForEch()) {
+            return;
+        }
+        if (getEchConfigList() == null) {
+            setEchConfigList(Conscrypt.getEchConfigListFromDns(hostname, port));
+        }
+    }
+
     /* @Override */
     @SuppressWarnings("MissingOverride") // For compilation with Java 6.
     public abstract SSLSession getHandshakeSession();
@@ -754,6 +767,10 @@ abstract class AbstractConscryptSocket extends SSLSocket {
      */
     abstract byte[] exportKeyingMaterial(String label, byte[] context, int length)
             throws SSLException;
+
+    public abstract void setCheckDnsForEch(boolean flag);
+
+    public abstract boolean getCheckDnsForEch();
 
     public abstract void setUseEchGrease(boolean enabled);
 
