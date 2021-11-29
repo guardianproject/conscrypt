@@ -56,8 +56,8 @@ publishing {
                 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
             url isSnapshot ? snapshotUrl : stagingUrl
             credentials {
-                username = rootProject.findProperty('ossrhUsername') ?: ''
-                password = rootProject.findProperty('ossrhPassword') ?: ''
+                username = System.getenv('ossrhUsername')
+                password = System.getenv('ossrhPassword')
             }
         }
     }
