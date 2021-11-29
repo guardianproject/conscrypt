@@ -15,9 +15,9 @@ publishing {
                 url = 'https://conscrypt.org/'
 
                 scm {
-                    connection = 'scm:git:https://github.com/google/conscrypt.git'
-                    developerConnection = 'scm:git:git@github.com:google/conscrypt.git'
-                    url = 'https://github.com/google/conscrypt'
+                    connection = 'scm:git:https://github.com/guardianproject/conscrypt.git'
+                    developerConnection = 'scm:git:git@github.com:guardianproject/conscrypt.git'
+                    url = 'https://github.com/guardianproject/conscrypt'
                 }
 
                 licenses {
@@ -35,6 +35,12 @@ publishing {
                         url = 'https://conscrypt.org/'
                         organization = 'Google, Inc.'
                         organizationUrl = 'https://www.google.com'
+                    }
+                    developer {
+                        id = 'defo'
+                        name = 'DEfO'
+                        email = 'defo-project@defo.ie'
+                        url = 'https://defo.ie/'
                     }
                 }
             }
