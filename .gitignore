@@ -28,3 +28,4 @@ bin
 
 # Vogar benchmarks
 vogar-results/*
+openjdk/src/test/resources/echdnsfuzz

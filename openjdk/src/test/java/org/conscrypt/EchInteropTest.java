@@ -19,6 +19,7 @@ package org.conscrypt;
 import org.conscrypt.com.android.net.module.util.DnsPacket;
 import org.conscrypt.testing.Streams;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,6 +27,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -35,6 +37,8 @@ import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 import java.util.Arrays;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.naming.NamingException;
 import javax.net.ssl.HttpsURLConnection;
@@ -42,6 +46,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import javax.xml.bind.DatatypeConverter;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -319,6 +324,33 @@ public class EchInteropTest {
                 e.printStackTrace();
             }
 
+        }
+    }
+
+    /**
+     * {@code git clone https://github.com/sftcd/echdnsfuzz} into {@code openjdk/src/test/resources/}
+     */
+    @Test
+    public void testEchDnsFuzz() throws IOException {
+        URL url = Thread.currentThread().getContextClassLoader().getResource("echdnsfuzz");
+        Assume.assumeTrue("https://github.com/sftcd/echdnsfuzz must be cloned into resources", url != null);
+        Pattern pattern = Pattern.compile("\\(([0-9a-fA-F\\s]{4,})\\)", Pattern.MULTILINE);
+        for (File f : new File(url.getPath()).listFiles()) {
+            if (!f.getName().endsWith(".stanza")) {
+                continue;
+            }
+            String stanza = new String(TestUtils.readTestFile("echdnsfuzz/" + f.getName()));
+            Matcher m = pattern.matcher(stanza);
+            if (!m.find()) {
+                System.out.println("== Skipping " + f.getName() + ", didn't find bytes in .stanza file ============");
+                continue;
+            }
+            String bytes = m.group(1).replaceAll(" ", "").replaceAll("\n", "").replaceAll("\t", "");
+            System.out.println("== EchInteroptTest.testEchDnsFuzz " + f.getName() + " =============================");
+            byte[] rr = DatatypeConverter.parseHexBinary(bytes);
+            Conscrypt.echPbuf(f.getName() + " stanza", rr);
+            byte[] echConfigList = EchDnsPacket.getEchConfigListFromDnsRR(rr);
+            Conscrypt.echPbuf("ECH Config List", echConfigList);
         }
     }
 
