@@ -87,4 +87,6 @@ build and test:
     - ./gradlew :conscrypt-android-platform:build || set_error
 
     - ./gradlew publishToMavenLocal
+    - test -n "$ossrhUsername" && test -n "$ossrhPassword" && ./gradlew publish
+
     - exit $EXITVALUE
