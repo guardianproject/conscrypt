@@ -1,3 +1,21 @@
+Guardian Project Development Fork
+=================================
+
+This is Guardian Project's development fork of the Conscrypt TLS Provider
+developed as part of the [DEfO Project](https://defo.ie) with [Tolerant
+Networks](https://tolerantnetworks.com/).  We are implementing [Encrypted Client
+Hello (ECH)](https://www.ietf.org/archive/id/draft-ietf-tls-esni-13.html) and
+[MASQUE](https://datatracker.ietf.org/wg/masque/about/) here, as well as any
+bits of
+[SVCB](https://www.ietf.org/archive/id/draft-ietf-dnsop-svcb-https-07.html) that
+helps with ECH and/or MASQUE.  We are also making it available for anyone to
+try.  There are alpha releases available on Maven Central:
+
+```gradle
+implementation 'info.guardianproject.conscrypt:conscrypt-android:2.6.alpha1638179154.job1828169525'
+```
+
+
 Conscrypt - A Java Security Provider
 ========================================
 
