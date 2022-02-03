@@ -1,0 +1,49 @@
+plugins {
+    id 'java-library'
+}
+apply plugin: 'application'
+mainClassName = 'conscrypt_transportauth.HTTPServer'
+sourceSets{
+    main.java.srcDirs += '../../openjdk/src'
+}
+println  "  rootDir:      ${project.rootDir}"
+println  "  projectDir:   ${project.projectDir}";
+println  "  project dir:  ${System.getProperty("user.dir")}";
+String FirstJar=[project.rootDir.absolutePath, '/openjdk/build/libs/conscrypt-openjdk-2.5.0-SNAPSHOT.jar'].join("")
+String SecondJar=[project.rootDir.absolutePath, '/openjdk/build/libs/conscrypt-openjdk-2.5.0-SNAPSHOT-linux-x86_64.jar'].join("")
+repositories {
+    flatDir {
+        dirs 'libs/conscrypt_openjdk_jni/shared'
+    }
+}
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_7
+    targetCompatibility = JavaVersion.VERSION_1_7
+}
+
+configurations {
+    someConfiguration
+}
+dependencies {
+    compile files(FirstJar)
+    compile files(SecondJar)
+    implementation('org.apache.httpcomponents:httpclient:4.5.12')
+    compileOnly fileTree(dir: 'libs', include: '*.so')
+    compileOnly fileTree(dir: 'resource', include: '*.*')
+    runtimeOnly project(':conscrypt-openjdk')
+    //compile (name:'libconscrypt_openjdk_jni', ext:'so')
+    implementation 'com.jakewharton.timber:timber:4.7.1'
+    implementation 'co.trikita:log:1.1.5'
+
+
+}
+
+
+
+task runTransportAuthServer(type: JavaExec) {
+    dependsOn configurations.runtimeClasspath
+    group = "Execution"
+    description = "Run the main class with JavaExecTask"
+    classpath = sourceSets.main.runtimeClasspath
+    main = 'com.example.conscrypt_transportauth.HTTPSServer'
+}
