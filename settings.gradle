@@ -1,3 +1,7 @@
+include ':conscrypt-transportauthclient'
+include ':conscrypt-newmodule'
+include ':testjava'
+include ':conscrypt-transportauth'
 rootProject.name = "conscrypt"
 include ":conscrypt-android"
 include ":conscrypt-android-platform"
@@ -12,6 +16,8 @@ include ":conscrypt-libcore-stub"
 include ":conscrypt-openjdk"
 include ":conscrypt-openjdk-uber"
 include ":conscrypt-testing"
+include ":conscrypt-transportauth"
+include ":conscrypt-transportauthclient"
 
 project(':conscrypt-android').projectDir = "$rootDir/android" as File
 project(':conscrypt-android-platform').projectDir = "$rootDir/platform" as File
@@ -26,3 +32,5 @@ project(':conscrypt-libcore-stub').projectDir = "$rootDir/libcore-stub" as File
 project(':conscrypt-openjdk').projectDir = "$rootDir/openjdk" as File
 project(':conscrypt-openjdk-uber').projectDir = "$rootDir/openjdk-uber" as File
 project(':conscrypt-testing').projectDir = "$rootDir/testing" as File
+project(':conscrypt-transportauth').projectDir = "$rootDir/conscrypt-transportauth" as File
+project(':conscrypt-transportauthclient').projectDir = "$rootDir/conscrypt-transportauthclient" as File
