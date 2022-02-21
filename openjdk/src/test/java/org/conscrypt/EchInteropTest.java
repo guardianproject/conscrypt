@@ -48,6 +48,8 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.xml.bind.DatatypeConverter;
 
+import sun.misc.IOUtils;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -263,6 +265,35 @@ public class EchInteropTest {
             assertTrue(connection.getCipherSuite().startsWith("TLS"));
             connection.disconnect();
         }
+    }
+
+    @Test
+    public void testConnectCloudflareTrace() throws IOException {
+        String host = "crypto.cloudflare.com";
+        String urlString = "https://" + host + "/cdn-cgi/trace";
+        System.out.println("EchInteroptTest " + urlString + " =================================");
+        URL url = new URL(urlString);
+        HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+        SSLSocketFactory delegateSocketFactory = connection.getSSLSocketFactory();
+        assertTrue(Conscrypt.isConscrypt(delegateSocketFactory));
+        // TODO get working with built-in automatic DNS
+        byte[] echConfigList = Conscrypt.getEchConfigListFromDns(host, 443);
+        connection.setSSLSocketFactory(new EchSSLSocketFactory(delegateSocketFactory, echConfigList));
+        // Cloudflare will return 403 Forbidden (error code 1010) unless a User Agent is set :-|
+        connection.setRequestProperty("User-Agent", "Conscrypt EchInteropTest");
+        connection.setConnectTimeout(0); // blocking connect with TCP timeout
+        connection.setReadTimeout(0);
+        if (connection.getResponseCode() != 200) {
+            System.out.println(new String(Streams.readFully(connection.getErrorStream())));
+        }
+        assertEquals(200, connection.getResponseCode());
+        assertEquals("text/plain", connection.getContentType().split(";")[0]);
+        String trace = new String(IOUtils.readAllBytes(connection.getInputStream()));
+        System.out.println(urlString + " " + connection.getCipherSuite() + ":\n" + trace);
+        assertTrue(connection.getCipherSuite().startsWith("TLS"));
+        assertTrue("contains sni=encrypted", trace.contains("sni=encrypted"));
+        assertFalse("does NOT contain sni=plaintext", trace.contains("sni=plaintext"));
+        connection.disconnect();
     }
 
     @Test
