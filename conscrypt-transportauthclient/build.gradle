@@ -9,8 +9,8 @@ println  "  project dir:  ${System.getProperty("user.dir")}";
 String FirstJar=[project.rootDir.absolutePath, '/openjdk/build/libs/conscrypt-openjdk-2.5.0-SNAPSHOT.jar'].join("")
 String SecondJar=[project.rootDir.absolutePath, '/openjdk/build/libs/conscrypt-openjdk-2.5.0-SNAPSHOT-linux-x86_64.jar'].join("")
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_7
-    targetCompatibility = JavaVersion.VERSION_1_7
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 dependencies {
     compile files(FirstJar)
