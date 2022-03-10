@@ -1,6 +1,9 @@
 package com.example.conscrypt_transportauth;
 
 
+import org.conscrypt.Conscrypt;
+import org.conscrypt.OpenSSLContextImpl;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -11,10 +14,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.net.Socket;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -26,23 +26,18 @@ import java.security.Security;
 import java.security.cert.Certificate;
 import java.util.Base64;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Properties;
+
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import org.conscrypt.*;
-import org.conscrypt.OpenSSLContextImpl;
-
-import trikita.log.Log;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -73,16 +68,24 @@ public class HTTPSServer  {
             System.exit(1);
         }
     }
+
     //load config.properties file which conatain the keystore for client and server, also their respective passwords
-    public static void loadConfig() throws IOException {
+    public static void loadConfig(String configFilePath) throws IOException {
 
         String propFileName = "config.properties";
-        InputStream  configFile = HTTPSServer.class.getClassLoader().getResourceAsStream(propFileName);
+        InputStream configFile = HTTPSServer.class.getClassLoader().getResourceAsStream(propFileName);
+        File configDir = null;
+        if (configFile == null) {
+            System.out.println("Loading config from " + configFilePath);
+            configFile = new FileInputStream(configFilePath);
+            configDir = new File(configFilePath).getParentFile();
+        }
         if (configFile != null) {
             prop.load(configFile);
         } else {
             throw new FileNotFoundException("property file '" + configFile + "' not found in the classpath");
         }
+        System.out.println("config dir " + configDir);
 
         //Save the values in Local variables
         serverKeystore=prop.getProperty("SERVERKEYSTORE");
@@ -90,13 +93,24 @@ public class HTTPSServer  {
         serverPassword=prop.getProperty("SERVERKEYSTOREPASSWORD");
         clientPassword=prop.getProperty("CLIENTKEYSTOREPASSWORD");
         EKMlabelLength=Integer.parseInt(prop.getProperty("EKMLABELLENGTH"));
+
+        if (configDir != null) {
+            System.out.println("Using keystores from config dir " + configDir);
+            serverKeystore = new File(configDir, serverKeystore).getAbsolutePath();
+            clientKeystore = new File(configDir, clientKeystore).getAbsolutePath();
+        }
+
         if(EKMlabelLength<32 || serverKeystore.equals("") || clientKeystore.equals("")){
             throw new FileNotFoundException("Invalud file name or lables size");
         }
     }
     public static void main(String[] args) throws IOException {
 
-        loadConfig();
+        if (args != null && args.length > 0) {
+            loadConfig(args[0]);
+        } else {
+            loadConfig(null);
+        }
         //Start the Client in new thread
         HTTPSServer server = new HTTPSServer();
         server.run();
@@ -133,35 +147,39 @@ public class HTTPSServer  {
 
 
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
-            File serverKeystorefile = null;
-            try {
-                URL ServerFileURL=new HTTPSServer().getClass().getClassLoader().getResource(serverKeystore);
-                if (ServerFileURL == null) {
-                    throw new IllegalArgumentException("file not found! " + serverKeystore);
+            System.out.println("Loading server keystore: " + serverKeystore);
+            File serverKeystorefile = new File(serverKeystore);
+            if (!serverKeystorefile.canRead()) {
+                try {
+                    URL ServerFileURL = new HTTPSServer().getClass().getClassLoader().getResource(serverKeystore);
+                    if (ServerFileURL == null) {
+                        throw new IllegalArgumentException("file not found! " + serverKeystore);
+                    }
+                    serverKeystorefile = new File(ServerFileURL.toURI());
+                } catch (URISyntaxException e) {
+                    serverKeystorefile = new File(HTTPSServer.class.getClassLoader().getResource(serverKeystore).getPath());
                 }
-                serverKeystorefile = new File(ServerFileURL.toURI());
-            } catch (URISyntaxException e) {
-                serverKeystorefile = new File(HTTPSServer.class.getClassLoader().getResource(serverKeystore).getPath());
             }
-            System.out.println("serverKeystorefile="+serverKeystorefile.getAbsolutePath());
-            keyStore.load(new FileInputStream(serverKeystorefile.getAbsolutePath()),serverPassword.toCharArray());
-
-
+            System.out.println("serverKeystorefile=" + serverKeystorefile.getAbsolutePath());
+            keyStore.load(new FileInputStream(serverKeystorefile.getAbsolutePath()), serverPassword.toCharArray());
 
 
             KeyStore trustStore = KeyStore.getInstance("PKCS12");
-            File clientKeystorefile = null;
-            try {
-                URL ClientFileURL=new HTTPSServer().getClass().getClassLoader().getResource(clientKeystore);
-                if (ClientFileURL == null) {
-                    throw new IllegalArgumentException("file not found! " + clientKeystore);
+            System.out.println("Loading client keystore: " + clientKeystore);
+            File clientKeystorefile = new File(clientKeystore);
+            if (!clientKeystorefile.canRead()) {
+                try {
+                    URL ClientFileURL = new HTTPSServer().getClass().getClassLoader().getResource(clientKeystore);
+                    if (ClientFileURL == null) {
+                        throw new IllegalArgumentException("file not found! " + clientKeystore);
+                    }
+                    clientKeystorefile = new File(ClientFileURL.toURI());
+                } catch (URISyntaxException e) {
+                    clientKeystorefile = new File(HTTPSServer.class.getClassLoader().getResource(clientKeystore).getPath());
                 }
-                clientKeystorefile = new File(ClientFileURL.toURI());
-            } catch (URISyntaxException e) {
-                clientKeystorefile = new File(HTTPSServer.class.getClassLoader().getResource(clientKeystore).getPath());
             }
-            System.out.println("clientKeystorefile="+clientKeystorefile.getAbsolutePath());
-            trustStore.load(new FileInputStream(clientKeystorefile.getAbsolutePath()),clientPassword.toCharArray());
+            System.out.println("clientKeystorefile=" + clientKeystorefile.getAbsolutePath());
+            trustStore.load(new FileInputStream(clientKeystorefile.getAbsolutePath()), clientPassword.toCharArray());
 
             // Create key manager
             KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("SunX509", "SunJSSE");
@@ -178,7 +196,7 @@ public class HTTPSServer  {
             sslContextConscrypt.engineInit(km,  tm, null);
             return sslContextConscrypt;
         } catch (Exception ex){
-            Log.d("Exception: "+ex.getMessage());
+            System.out.println("Exception: " + ex.getMessage());
 
         }
 
@@ -198,11 +216,11 @@ public class HTTPSServer  {
                 System.out.println("Waiting for connection....");
                 SSLSocket sslSocket = (SSLSocket) sslServerSocket.accept();
                 System.out.println("Received connection pasoing to Thread...");
-                //Log.d("Received connection pasoing to Thread...");
+                //System.out.println("Received connection pasoing to Thread...");
                 new ServerThread(sslSocket).start();
             }
         } catch (Exception ex){
-            Log.d("Exception: "+ex.getMessage());
+            System.out.println("Exception: " + ex.getMessage());
         }
     }
     // Thread handling the socket from client
@@ -217,7 +235,7 @@ public class HTTPSServer  {
                 //SSLSocket sslSocket=event.getSocket();
                 System.out.println("handshake completed successful");
 
-                //Log.d("handshake completed successful");
+                //System.out.println("handshake completed successful");
                 //byte [] b=null;
                 //Call Conscrypt API to export keying material
                 //byte [] output= new byte[32];
@@ -227,13 +245,15 @@ public class HTTPSServer  {
             }
             catch(Exception e) {
                 System.out.println("Error in handshake ");
-                Log.d("\"Error in handshake \"+"+e.getMessage());
+                System.out.println("\"Error in handshake \"+" + e.getMessage());
 
                 //e.printStackTrace();
                 //LOGGER.info("Error Error in handshake : "+e.getMessage());
             }
         }
+
         private static final byte[] HEX_ARRAY = "0123456789ABCDEF".getBytes(StandardCharsets.US_ASCII);
+
         public static String bytesToHex(byte[] bytes) {
             byte[] hexChars = new byte[bytes.length * 2];
             for (int j = 0; j < bytes.length; j++) {
@@ -445,7 +465,7 @@ public class HTTPSServer  {
                 //sslSocket.close();
             } catch (Exception ex) {
 
-                Log.d("Exception: "+ex.getMessage());
+                System.out.println("Exception: " + ex.getMessage());
                 //LOGGER.info("Error run socket processing: "+ex.getMessage());
             }
         }

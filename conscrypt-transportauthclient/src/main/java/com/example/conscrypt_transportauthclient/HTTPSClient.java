@@ -17,17 +17,14 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.security.KeyStore;
-import javax.net.ssl.SSLEngine;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -50,7 +47,7 @@ public class HTTPSClient {
     private int port = 8333;
     private  OpenSSLContextImpl sslContextConscrypt;
     private static Provider p;
-    public static String Authmechanisum;
+    public static String authMechanisum;
     public static String clientName="John James";
     public static String [] ExporterLabelArray={"EXPORTER-HTTP-Transport-Authentication-Signature","EXPORTER-HTTP-Transport-Authentication-HMAC"};
     public static int labellength=32;
@@ -61,12 +58,19 @@ public class HTTPSClient {
     private static String serverPassword="";
     private static String clientPassword="";
     private static Properties prop = new Properties();
-    public static void loadConfig() throws IOException {
+
+    public static void loadConfig(String configFilePath) throws IOException {
 
 
         //load config.properties file which conatain the keystore for client and server, also their respective passwords
         String propFileName = "config.properties";
         InputStream  configFile = HTTPSClient.class.getClassLoader().getResourceAsStream(propFileName);
+        File configDir = null;
+        if (configFile == null) {
+            System.out.println("Loading config from " + configFilePath);
+            configFile = new FileInputStream(configFilePath);
+            configDir = new File(configFilePath).getParentFile();
+        }
         if (configFile != null) {
             prop.load(configFile);
         } else {
@@ -80,30 +84,35 @@ public class HTTPSClient {
         clientPassword=prop.getProperty("CLIENTKEYSTOREPASSWORD");
         clientPrivateKey=prop.getProperty("CLIENTPRIVATEKEY");
 
-
+        if (configDir != null) {
+            System.out.println("Using keystores from config dir " + configDir);
+            serverKeystore = new File(configDir, serverKeystore).getAbsolutePath();
+            clientKeystore = new File(configDir, clientKeystore).getAbsolutePath();
+            clientPrivateKey = new File(configDir, clientPrivateKey).getAbsolutePath();
+        }
     }
+
     public static void main(String[] args) throws IOException {
-        loadConfig();
 
         // First argument should be HMAC or Signature which will define the which algorithum to use.
-        //ave user input in Authmechanisum
+        //ave user input in authMechanisum
         if(args.length<=0){
             System.out.println(" Usage error: Please specify the mechnisum");
             return;
         }
-        for(int i = 0; i<args.length; i++) {
+	if (args[0].equals("HMAC")) {
+	    authMechanisum=args[0];
+	} else if(args[0].equals("Signature")) {
+	    authMechanisum=args[0];
+	} else {
+	    System.out.println(" Usage error: Please specify the mechnisum");
+	    return;
+	}
 
-            System.out.println("args[" + i + "]: " + args[i]);
-            if(i==0 && args[i].equals("HMAC")){
-                Authmechanisum=args[i];
-            }
-            else if(i==0 && args[i].equals("Signature")){
-                Authmechanisum=args[i];
-            }
-            else{
-                System.out.println(" Usage error: Please specify the mechnisum");
-                return;
-            }
+        if (args != null && args.length > 1) {
+            loadConfig(args[1]);
+        } else {
+            loadConfig(null);
         }
 
         //Start the Client in new thread
@@ -136,14 +145,14 @@ public class HTTPSClient {
     private OpenSSLContextImpl createSSLContextConscrypt(){
         try{
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
-            File clientKeystorefile = null;
+            File clientKeystorefile = new File(clientKeystore);
             URL ServerFileURL=HTTPSClient.class.getClassLoader().getResource(clientKeystore);
-
-            if (ServerFileURL == null) {
-                throw new IllegalArgumentException("file not found! " + clientKeystore);
+            if (!clientKeystorefile.canRead()) {
+                if (ServerFileURL == null) {
+                    throw new IllegalArgumentException("file not found! " + clientKeystore);
+                }
+                clientKeystorefile = new File(ServerFileURL.toURI());
             }
-            clientKeystorefile = new File(ServerFileURL.toURI());
-            //serverKeystorefile= new File("resources/"+clientKeystore);
 
             System.out.println("clientKeystorefile="+clientKeystorefile.getAbsolutePath());
             keyStore.load(new FileInputStream(clientKeystorefile.getAbsolutePath()),clientPassword.toCharArray());
@@ -151,15 +160,17 @@ public class HTTPSClient {
 
 
             //Server public key store in truststore
-            File serverKeystorefile = null;
-            try {
-                URL ClientFileURL=new HTTPSClient().getClass().getClassLoader().getResource(serverKeystore);
-                if (ClientFileURL == null) {
-                    throw new IllegalArgumentException("file not found! " + serverKeystore);
+            File serverKeystorefile = new File(serverKeystore);
+            if (!serverKeystorefile.canRead()) {
+                try {
+                    URL ClientFileURL = new HTTPSClient().getClass().getClassLoader().getResource(serverKeystore);
+                    if (ClientFileURL == null) {
+                        throw new IllegalArgumentException("file not found! " + serverKeystore);
+                    }
+                    serverKeystorefile = new File(ClientFileURL.toURI());
+                } catch (URISyntaxException e) {
+                    serverKeystorefile = new File(HTTPSClient.class.getClassLoader().getResource(serverKeystore).getPath());
                 }
-                serverKeystorefile = new File(ClientFileURL.toURI());
-            } catch (URISyntaxException e) {
-                serverKeystorefile = new File(HTTPSClient.class.getClassLoader().getResource(serverKeystore).getPath());
             }
             System.out.println("serverKeystorefile="+serverKeystorefile.getAbsolutePath());
             trustStore.load(new FileInputStream(serverKeystorefile.getAbsolutePath()),serverPassword.toCharArray());
@@ -242,7 +253,7 @@ public class HTTPSClient {
                 SSLSocket sslSocket=vente.getSocket();
                 System.out.println("handshake completed successfully");
                 byte [] b=null;
-                if(Authmechanisum.equals("HMAC")){
+                if(authMechanisum.equals("HMAC")){
                     if(ExporterLabelArray.length>1 && !ExporterLabelArray[0].equals("") ){
 
                         // Export Keying material from JNI wrapper
@@ -250,7 +261,7 @@ public class HTTPSClient {
                         this.ekm=Conscrypt.exportKeyingMaterial(sslSocket, ExporterLabelArray[0],b , labellength);
                     }
                 }
-                else if(Authmechanisum.equals("Signature")){
+                else if(authMechanisum.equals("Signature")){
                     if(ExporterLabelArray.length>1 && !ExporterLabelArray[1].equals("") ){
 
                         // Export Keying material from JNI wrapper
@@ -432,7 +443,7 @@ public class HTTPSClient {
                         String SignatureParamP="";
                         String SignatureParamU = Base64.getEncoder().encodeToString(this.InputUserID.getBytes());
                         String SignatureParamA="";
-                        if(Authmechanisum.equals("HMAC")){
+                        if (authMechanisum.equals("HMAC")) {
                             SignatureParamA=getOIDMacAlgorithum("HmacSHA512");
                             System.out.println("Export_Keying_Material: "+bytesToHex(this.ekm));
 
@@ -465,8 +476,7 @@ public class HTTPSClient {
                                 ie.printStackTrace();
                                 return;
                             }
-                        }
-                        else if(Authmechanisum.equals("Signature")){
+                        } else if(authMechanisum.equals("Signature")) {
                             SignatureParamA=getOIDDigestAlgorithum("SHA256withRSA");
 
                             String key = getPrivateKey(clientPrivateKey);
