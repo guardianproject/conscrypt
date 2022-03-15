@@ -43,7 +43,6 @@ import javax.net.ssl.X509TrustManager;
 import java.util.Properties;
 public class HTTPSClient {
 
-    private String host = "127.0.0.1";
     private int port = 8333;
     private  OpenSSLContextImpl sslContextConscrypt;
     private static Provider p;
@@ -57,6 +56,7 @@ public class HTTPSClient {
     private static String clientKeystore="";
     private static String serverPassword="";
     private static String clientPassword="";
+    private static String serverHost = "";
     private static Properties prop = new Properties();
 
     public static void loadConfig(String configFilePath) throws IOException {
@@ -83,6 +83,7 @@ public class HTTPSClient {
         serverPassword=prop.getProperty("SERVERKEYSTOREPASSWORD");
         clientPassword=prop.getProperty("CLIENTKEYSTOREPASSWORD");
         clientPrivateKey=prop.getProperty("CLIENTPRIVATEKEY");
+        serverHost = prop.getProperty("SERVERHOST", "127.0.0.1");
 
         if (configDir != null) {
             System.out.println("Using keystores from config dir " + configDir);
@@ -122,11 +123,6 @@ public class HTTPSClient {
 
     //constructor
     HTTPSClient(){
-    }
-
-    HTTPSClient(String host, int port){
-        this.host = host;
-        this.port = port;
     }
 
     // Create the and initialize the SSLContext
@@ -232,7 +228,7 @@ public class HTTPSClient {
             SSLSocketFactory sslSocketFactory=sslContextConscrypt.engineGetSocketFactory();
 
             // Create conscrypt based client socket
-            SSLSocket sslSocket = (SSLSocket) sslSocketFactory.createSocket(this.host, this.port);
+            SSLSocket sslSocket = (SSLSocket) sslSocketFactory.createSocket(this.serverHost, this.port);
             System.out.println("SSL client started");
 
             //pass socket handling to new class (Thread)
