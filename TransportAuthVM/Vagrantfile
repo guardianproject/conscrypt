@@ -1,0 +1,46 @@
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian/bullseye64"
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  config.vm.hostname = "TransportAuthVM"
+
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.cpus = 2
+  end
+
+  env = {
+    "DEBIAN_FRONTEND" => "noninteractive",
+    "LC_ALL" => "C.UTF-8",
+  }
+
+  config.vm.provision :file, source: "99noninteractive", destination: "99noninteractive"
+  config.vm.provision :shell, env: env, inline: <<-SHELL
+    set -ex
+
+    update-locale LC_ALL=C.UTF-8
+
+    install -m0644 99noninteractive /etc/apt/apt.conf.d/
+    rm 99noninteractive
+    echo 'deb https://security.debian.org/debian-security stretch/updates main' >> /etc/apt/sources.list
+    sed -i s,http:,https:,g /etc/apt/sources.list
+    apt-get update
+    apt-get dist-upgrade
+    apt-get install ca-certificates curl
+  SHELL
+
+  config.vm.provision :shell, env: env, inline: <<-SHELL
+    set -ex
+
+    apt-get update
+    apt-get install ca-certificates git openjdk-8-jdk-headless
+
+    cd /home/vagrant
+    sudo -u vagrant git clone --depth 1 --branch MASQUE https://github.com/guardianproject/conscrypt.git
+
+    myip=`ip a | grep -Eo '192\.168\.121\.[1-9][0-9]*' | grep -vF 192.168.121.255 | head -1`
+    echo SERVERHOST=$myip | sudo tee --append conscrypt/conscrypt-transportauthclient/src/main/resources/config.properties
+  SHELL
+
+end

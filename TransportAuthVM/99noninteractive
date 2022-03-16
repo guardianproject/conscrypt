@@ -1,0 +1,7 @@
+// tune apt-get for headless operation
+APT::Install-Recommends "0";
+APT::Install-Suggests "0";
+APT::Acquire::Retries "20";
+APT::Get::Assume-Yes "true";
+Dpkg::Use-Pty "0";
+quiet "1";
