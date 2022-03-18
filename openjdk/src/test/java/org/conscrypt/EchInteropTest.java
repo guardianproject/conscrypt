@@ -107,9 +107,17 @@ public class EchInteropTest {
         assertFalse(Conscrypt.isConscrypt(SSLContext.getInstance("TLSv1")));
     }
 
+    /**
+     * An early test written before DNS support was present.  There probably isn't
+     * a good reason to read ECH Configs from local files any more.
+     */
     @Test
     public void testConnectSocket() throws IOException {
         for (String h : hosts) {
+            if ("crypto.cloudflare.com".equals(h)) {
+                // supports ECH but no local ECH Config test file
+                continue;
+            }
             System.out.println("EchInteroptTest " + h + " =================================");
             String[] hostPort = h.split(":");
             String host = hostPort[0];
