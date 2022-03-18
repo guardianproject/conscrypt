@@ -12,7 +12,7 @@ helps with ECH and/or MASQUE.  We are also making it available for anyone to
 try.  There are alpha releases available on Maven Central:
 
 ```gradle
-implementation 'info.guardianproject.conscrypt:conscrypt-android:2.6.alpha1638179154.job1828169525'
+implementation 'info.guardianproject.conscrypt:conscrypt-android:2.6.alpha1647601986.job2220801545'
 ```
 
 
