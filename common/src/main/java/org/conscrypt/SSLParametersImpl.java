@@ -106,7 +106,7 @@ final class SSLParametersImpl implements Cloneable {
     private Boolean useSni;
 
     private boolean useEchGrease;
-    private boolean checkDnsForEch;
+    private boolean checkDnsForEch = true;
     byte[] echConfigList;
 
     /**
