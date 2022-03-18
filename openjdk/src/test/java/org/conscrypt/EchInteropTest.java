@@ -138,9 +138,9 @@ public class EchInteropTest {
             assertTrue(sslSocket.isConnected());
             AbstractConscryptSocket abstractConscryptSocket = (AbstractConscryptSocket) sslSocket;
             if (setUpEch) {
-                assertTrue(abstractConscryptSocket.echAccepted());
+                assertTrue(h + " should accept ECH", abstractConscryptSocket.echAccepted());
             } else {
-                assertFalse(abstractConscryptSocket.echAccepted());
+                assertFalse(h + " should NOT accept ECH", abstractConscryptSocket.echAccepted());
             }
             sslSocket.close();
         }
@@ -230,7 +230,7 @@ public class EchInteropTest {
             sslSocket.startHandshake();
             assertTrue(sslSocket.isConnected());
             AbstractConscryptSocket abstractConscryptSocket = (AbstractConscryptSocket) sslSocket;
-            assertTrue(abstractConscryptSocket.echAccepted());
+            assertTrue(h + " should accept ECH", abstractConscryptSocket.echAccepted());
             sslSocket.close();
         }
     }
