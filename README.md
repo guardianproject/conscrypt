@@ -160,6 +160,24 @@ After transport header fields verification, and which also involves cryptography
 How to Build and Run
 -----------------------------
 
-If you are making changes to Transport Authentication,
- see the [building
-instructions](BUILD.md).
+If you are making changes to Transport Authentication, see the [building instructions](BUILD.md).
+There is a Vagrant setup that does all the setup.  To use it:
+
+```console
+$ git clone --branch MASQUE https://github.com/guardianproject/conscrypt.git
+$ cd conscrypt/TransportAuthVM/
+$ vagrant up
+$ vagrant ssh
+vagrant@TransportAuthVM:~$ 
+vagrant@TransportAuthVM:~$ cd conscrypt/
+vagrant@TransportAuthVM:~/conscrypt$ ./runTransportAuthServer.sh
+```
+
+Then in a separate terminal:
+
+```console
+$ cd conscrypt/TransportAuthVM/
+$ vagrant ssh
+vagrant@TransportAuthVM:~$ cd conscrypt/
+vagrant@TransportAuthVM:~/conscrypt$ ./runTransportAuthJavaClientWithHMAC.sh 
+```
