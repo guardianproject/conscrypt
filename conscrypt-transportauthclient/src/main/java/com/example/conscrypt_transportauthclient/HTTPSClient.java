@@ -448,15 +448,13 @@ public class HTTPSClient {
                                 byte[] hmacSha256 = calcHmacSha512(bytesToHex(this.ekm).toString().getBytes("UTF-8"), this.InputUserID.getBytes("UTF-8"));
                                 SignatureParamP=bytesToHex(hmacSha256);
                                 System.out.println(String.format("Hex: %032x", new BigInteger(1, hmacSha256)));
-                                out.print("HTTP/1.0 200 OK\r\n");
-                                out.print("Content-Length: 0"+
-                                        "\r\n");
+                                out.print("CONNECT guardianproject.info:443 HTTP/1.0\r\n");
+                                out.print("Content-Length: 0\r\n");
                                 out.print("Transport-Authentication: HMAC u="+SignatureParamU
                                         +";a="+SignatureParamA
                                         +";p="+SignatureParamP
                                         +"\r\n");
 
-                                out.print("Content-Type: text/html\r\n\r\n");
                                 out.flush();
 
 
@@ -464,7 +462,8 @@ public class HTTPSClient {
                                 while((line = bufferedReader.readLine()) != null){
                                     System.out.println("Client Received : "+line);
 
-                                    if(line.trim().equals("HTTP/1.1 200\r\n")){
+                                    if(line.trim().startsWith("HTTP/1.0 200")){
+					System.out.println("Got 200, done!");
                                         break;
                                     }
                                 }

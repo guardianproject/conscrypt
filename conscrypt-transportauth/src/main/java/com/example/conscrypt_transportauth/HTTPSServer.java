@@ -378,35 +378,32 @@ public class HTTPSServer  {
                                 //System.out.println("sslSocket.getSession().getPeerCertificateChain()"+sslSocket.getSession().getPeerCertificateChain());
                                 SSLSession ss2=sslSocket.getHandshakeSession();
 
-                                System.out.println("getHandshakeSession="+ss2.getPeerHost());
+                                System.out.println("getHandshakeSession="+ss2);
+                                if (ss2 != null) {
+                                    System.out.println("getPeerHost="+ss2.getPeerHost());
 
-                                Certificate[] clientCerts=ss2.getPeerCertificates();
-                                System.out.println("clientCerts="+clientCerts.length);
-                                //Certificate [] clientCerts=sslSocket.getSession().getPeerCertificates();
-                                System.out.println("reading clientCerts");
+                                    Certificate[] clientCerts=ss2.getPeerCertificates();
+                                    System.out.println("clientCerts="+clientCerts.length);
+                                    //Certificate [] clientCerts=sslSocket.getSession().getPeerCertificates();
+                                    System.out.println("reading clientCerts");
 
-                                System.out.println("Certs retrieved: " + clientCerts.length);
-                                for ( Certificate cert : clientCerts) {
-                                    System.out.println("Certificate is: " + cert);
-                                    if(cert !=null) {
-                                        try {
-                                            PublicKey pu=cert.getPublicKey();
-                                            System.out.println("publickey="+pu);
-                                        }
-                                        catch(Exception e) {
-                                            System.out.println("Exception printing certificates");
+                                    System.out.println("Certs retrieved: " + clientCerts.length);
+                                    for ( Certificate cert : clientCerts) {
+                                        System.out.println("Certificate is: " + cert);
+                                        if(cert !=null) {
+                                            try {
+                                                PublicKey pu=cert.getPublicKey();
+                                                System.out.println("publickey="+pu);
+                                            }
+                                            catch(Exception e) {
+                                                System.out.println("Exception printing certificates");
+                                            }
                                         }
                                     }
                                 }
-
-                                System.out.println("clientPublicKey="+peerPublicKey.toString());
+                                System.out.println("clientPublicKey="+peerPublicKey);
 
                                 //Pass the request ot Destination server
-                                String tunnelHost = "localhost";
-                                int tunnelPort = Integer.getInteger("7333").intValue();
-                                Socket tunnel = new Socket(tunnelHost, tunnelPort);
-                                tunnel.close();
-                                //SSLSocket socket =(SSLSocket)factory.createSocket(tunnel, host, port, true);
                             }
                             else if(line.contains("Signature")) {
 
@@ -459,11 +456,15 @@ public class HTTPSServer  {
                 }
 
                 // Write data
-                printWriter.print("HTTP/1.1 200\r\n");
+                String reply = "HTTP/1.0 200 Connection Established\r\n";
+                System.out.println("Server sending: " + reply);
+                printWriter.print(reply);
                 printWriter.flush();
+                System.out.println("---------------------------------------------------------------");
 
                 //sslSocket.close();
             } catch (Exception ex) {
+                ex.printStackTrace();
 
                 System.out.println("Exception: " + ex.getMessage());
                 //LOGGER.info("Error run socket processing: "+ex.getMessage());
